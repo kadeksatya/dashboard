@@ -60,6 +60,12 @@
                                 <p>Category</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="/masterdata/market" class="nav-link {{ (request()->is('market/*')) ? 'active' : '' }}">
+                                <i class="fa fa-home nav-icon"></i>
+                                <p>Market</p>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <li class="nav-item">

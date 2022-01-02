@@ -24,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('masterdata')->group(function () {
         Route::resource('product','ProductController');
         Route::resource('category', 'CategoryController');
+        Route::resource('market', 'MarketController');
     });
 
     Route::resource('dataset', 'HistoryController');

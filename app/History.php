@@ -21,5 +21,15 @@ class History extends Model
     {
         return $this->belongsTo('App\Product', 'product_id');
     }
+
+        /**
+     * Get the product that owns the History
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function market(): BelongsTo
+    {
+        return $this->belongsTo('App\Market', 'market_id');
+    }
     
 }

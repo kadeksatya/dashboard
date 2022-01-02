@@ -13,18 +13,10 @@
                     @csrf
                     <div class="row">
                         <div class="form-group col-md-3">
-                            <label for="">Filter Product</label>
-                            <select name="product_id" id="" class="form-control">
-                                <option value="" selected disabled>Pilih Satu</option>
-                                @foreach ($product as $i)
-                                <option value="{{$i->id}}">{{$i->name}}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group col-md-3">
                             <label for="">Cari Berdasarkan</label>
                             <select name="order_by" id="search_by" class="form-control orderby">
                                 <option value="" selected disabled>Pilih Satu</option>
+                                <option value="week">Week</option>
                                 <option value="month">Month</option>
                                 <option value="year">Year</option>
                             </select>
@@ -59,6 +51,14 @@
                                 <option value=""></option>
                             </select>
                         </div>
+                        <div class="form-group col-md-3 parent-week" style="display: none">
+                            <label for="">Start Date</label>
+                            <input type="date" name="start_date" id="" class="form-control">
+                        </div>
+                        <div class="form-group col-md-3 parent-week" style="display: none">
+                            <label for="">End Date</label>
+                            <input type="date" name="end_date" id="" class="form-control">
+                        </div>
                     </div>
                     <button class="btn btn-primary" type="submit">Cari</button>
                 </form>
@@ -66,7 +66,7 @@
         </div>
     </div>
     <div class="col-lg-12">
-        @if (request()->product_id != '')
+        @if (request()->order_by != '')
         <!-- LINE CHART -->
         <div class="card card-info">
             <div class="card-header">
@@ -101,24 +101,34 @@
     $(document).ready(function () {
         //console.log(datas)
 
-        @if(request() -> product_id != '')
+        @if(request() -> order_by != '')
 
         let labels = {!!$labels!!};
 
         const statistics = JSON.parse('{!! $data !!}');
 
         console.log(statistics);
+        var randomColorGenerator = function() {
+         return '#' + (Math.random().toString(16) + '0000000').slice(2, 8);
+        };
 
+
+        let datasets = [];
+
+        for(item in statistics){
+            let x = statistics[item];
+            datasets.push({
+                label: item,
+                data: x.map(i => i.amount),
+                borderColor: randomColorGenerator(),
+                backgroundColor: 'transparent',
+                fill: false
+            });
+        }
 
         const data = {
             labels: labels,
-            datasets: [{
-                label: statistics.length > 0 ? statistics[0].product_name : 'Data Set',
-                data: statistics.map(item => item.amount),
-                borderColor: 'red',
-                backgroundColor: 'transparent',
-                fill: false
-            }]
+            datasets: datasets
         };
 
         const config = {
@@ -152,19 +162,19 @@
             var values = $('.orderby').find(":selected").val();
             console.log(values);
 
-            if (values == 'day') {
-                $('.parent-day').show();
+            if (values == 'week') {
+                $('.parent-week').show();
                 $('.parent-month').hide();
                 $('.parent-year').hide();
             }
             if (values == 'month') {
-                $('.parent-day').hide();
+                $('.parent-week').hide();
                 $('.parent-month').show();
                 $('.parent-year').hide();
 
             }
             if (values == 'year') {
-                $('.parent-day').hide();
+                $('.parent-week').hide();
                 $('.parent-month').hide();
                 $('.parent-year').show();
             }

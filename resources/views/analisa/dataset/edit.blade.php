@@ -25,6 +25,14 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="">Marketing Name</label>
+                    <select name="market_id" id="" class="form-control">
+                        @foreach ($market as $i)
+                            <option value="{{$i->id}}" {{$i->id == $dataset->market_id ? 'selected':''}}>{{$i->name}}</option>
+                        @endforeach
+                    </select>
+                </div>
                 
                 <div class="form-group">
                     <label for="">Harga Barang</label>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\History;
 use App\Product;
+use App\Market;
 use Illuminate\Http\Request;
 
 class HistoryController extends Controller
@@ -27,19 +28,86 @@ class HistoryController extends Controller
     public function indexChart(Request $request)
     {
         $data['product'] = Product::all();
-        $day = $request->day;
+        $start_date = \Carbon\Carbon::parse($request->start_date)->format('Y-m-d');
+        $end_date = \Carbon\Carbon::parse($request->end_date)->format('Y-m-d');
         $month = $request->month;
         $year = $request->year;
-        if($request->order_by == 'day' && $day != ''){
-            $data['chart'] = History::whereDay('date', $day)->where('product_id', $request->product_id)
-            ->join('products', 'histories.product_id', '=', 'products.id')
-            ->select('products.name as product_name','histories.amount as amount','histories.date as date')
-            ->groupBy('histories.date')
-            ->get();
 
-            $data['chart'] = json_encode($data);
-            return view('analisa.chart.index', $data);
+
+
+
+
+        if($request->order_by == 'week' && $start_date != '' && $end_date != ''){
+
+            $labels = [];
+
+            $last_date = \Carbon\Carbon::parse(date('Y') . "-" . date('m') . "-" . "01")->endOfDay()->format('d');
+            
+            for($i=1; $i <= (int) $last_date; $i++){
+                $date = \Carbon\Carbon::parse(date('Y') . "-" . date('m') . "-" . $i)->format('Y-m-d');
+                
+                array_push($labels, \Carbon\Carbon::parse($date)->format('D'));
+
+                foreach($data['product'] as $product){
+                    $history = History::whereBetween('date', array($start_date, $end_date))
+                            ->where('histories.product_id', $product->id)
+                            ->join('products', 'histories.product_id', '=', 'products.id')
+                            ->join('markets', 'markets.id', 'histories.market_id')
+                            ->select(\DB::raw('CONCAT(products.name, " (", markets.name, ") ") as product_name'),'histories.amount as amount','histories.date as date', 'markets.name as market_name')
+                            ->whereDate('histories.date', array($start_date, $end_date))
+                            ->first();
+
+                    if($history){
+                        $data['chart'][] = [
+                            'product_name' => $history->product_name,
+                            'market_name' => $history->market_name,
+                            'amount' => $history->amount,
+                            'date' => $history->date
+                        ];
+                    }
+                }
+
+                // dd($labels);
+
+            }
+
+            $groupChart = collect($data['chart'])->groupBy('product_name');
+            $tmpGroupChart = [];
+            foreach($groupChart as $index => $item){
+                $gChart = collect($groupChart[$index])->pluck('date');
+                for($i=1; $i <= (int) $last_date; $i++){
+                    $date = \Carbon\Carbon::parse(date('Y') . "-" . date('m') . "-" . $i)->format('Y-m-d');
+
+                    if(!in_array($date, $gChart->toArray())){
+                        $groupChart[$index][] = [
+                            'product_name' => '',
+                            'market_name' => '',
+                            'amount' => 0,
+                            'date' => $date
+                        ];
+                    }
+                }
+
+                $tmpChart = collect($groupChart[$index])->sortBy('date')->values();
+
+                $tmpGroupChart[$index] = $tmpChart; 
+            }
+
+            $labels = collect($labels);
+            $labels = $labels->sort();
+
+            // return response()->json(collect($data['chart'])->groupBy('product_name'));
+
+            // return response()->json($tmpGroupChart);
+
+
+            return view('analisa.chart.index', [
+                'labels' => $labels,
+                'data' => json_encode($tmpGroupChart),
+                'product' => $data['product']
+            ]);
         }
+
 
         if($request->order_by == 'month' && $month != ''){
 
@@ -52,37 +120,60 @@ class HistoryController extends Controller
                 
                 array_push($labels, \Carbon\Carbon::parse($date)->format('d'));
 
-                $history = History::whereMonth('date', $month)->where('product_id', $request->product_id)
-                ->join('products', 'histories.product_id', '=', 'products.id')
-                ->select('products.name as product_name','histories.amount as amount','histories.date as date')
-                ->whereDate('date', $date)
-                ->groupBY('histories.date')
-                ->first();
+                foreach($data['product'] as $product){
+                    $history = History::whereMonth('date', $month)
+                            ->where('histories.product_id', $product->id)
+                            ->join('products', 'histories.product_id', '=', 'products.id')
+                            ->join('markets', 'markets.id', 'histories.market_id')
+                            ->select(\DB::raw('CONCAT(products.name, " (", markets.name, ") ") as product_name'),'histories.amount as amount','histories.date as date', 'markets.name as market_name')
+                            ->whereDate('histories.date', $date)
+                            ->first();
 
-                if($history){
-                    $data['chart'][] = [
-                        'product_name' => $history->product_name,
-                        'amount' => $history->amount,
-                        'date' => $history->date
-                    ];
-                }
-                else{
-                    $data['chart'][] = [
-                        'product_name' => '',
-                        'amount' => 0,
-                        'date' => $date
-                    ];
+                    if($history){
+                        $data['chart'][] = [
+                            'product_name' => $history->product_name,
+                            'market_name' => $history->market_name,
+                            'amount' => $history->amount,
+                            'date' => $history->date
+                        ];
+                    }
                 }
 
+            }
+
+            $groupChart = collect($data['chart'])->groupBy('product_name');
+            $tmpGroupChart = [];
+            foreach($groupChart as $index => $item){
+                $gChart = collect($groupChart[$index])->pluck('date');
+                for($i=1; $i <= (int) $last_date; $i++){
+                    $date = \Carbon\Carbon::parse(date('Y') . "-" . $month . "-" . $i)->format('Y-m-d');
+
+                    if(!in_array($date, $gChart->toArray())){
+                        $groupChart[$index][] = [
+                            'product_name' => '',
+                            'market_name' => '',
+                            'amount' => 0,
+                            'date' => $date
+                        ];
+                    }
+                }
+
+                $tmpChart = collect($groupChart[$index])->sortBy('date')->values();
+
+                $tmpGroupChart[$index] = $tmpChart; 
             }
 
             $labels = collect($labels);
             $labels = $labels->sort();
 
+            //return response()->json(collect($data['chart'])->groupBy('product_name'));
+
+            // return response()->json($tmpGroupChart);
+
 
             return view('analisa.chart.index', [
                 'labels' => $labels,
-                'data' => json_encode($data['chart']),
+                'data' => json_encode($tmpGroupChart),
                 'product' => $data['product']
             ]);
         }
@@ -91,46 +182,77 @@ class HistoryController extends Controller
 
             $labels = [];
 
-            $last_month = 12;
-            
-            for($i=1; $i <= (int) $last_month; $i++){
-                $date = \Carbon\Carbon::parse($year . "-" . $i . "-" . "01")->format('Y-m-d');
+            $last_date = \Carbon\Carbon::parse($year . "-" . date('m') . "-" . "01")->endOfDay()->format('m');
+            for($i=1; $i <= (int) $last_date; $i++){
+                $date = \Carbon\Carbon::parse($year . "-" . $i . "-" . '01')->format('Y-m-d');
                 
                 array_push($labels, \Carbon\Carbon::parse($date)->format('M'));
 
-                $history = History::whereYear('date', $year)->where('product_id', $request->product_id)
-                ->join('products', 'histories.product_id', '=', 'products.id')
-                ->select('products.name as product_name','histories.amount as amount','histories.date as date')
-                ->whereMonth('date', $i)
-                ->groupBY('histories.date')
-                ->first();
+            
+                foreach($data['product'] as $product){
+                    $history = History::whereYear('date', $year)
+                            ->where('histories.product_id', $product->id)
+                            ->join('products', 'histories.product_id', '=', 'products.id')
+                            ->join('markets', 'markets.id', 'histories.market_id')
+                            ->select(\DB::raw('CONCAT(products.name, " (", markets.name, ") ") as product_name'),'histories.amount as amount','histories.date as date', 'markets.name as market_name')
+                            ->whereDate('histories.date', $date)
+                            ->groupBy('products.name')
+                            ->first();
 
-                if($history){
-                    $data['chart'][] = [
-                        'product_name' => $history->product_name,
-                        'amount' => $history->amount,
-                        'date' => $history->date
-                    ];
-                }
-                else{
-                    $data['chart'][] = [
-                        'product_name' => '',
-                        'amount' => 0,
-                        'date' => $date
-                    ];
+                    if($history){
+                        $data['chart'][] = [
+                            'product_name' => $history->product_name,
+                            'market_name' => $history->market_name,
+                            'amount' => $history->amount,
+                            'date' => $history->date
+                        ];
+                    }
                 }
 
+            } 
+
+        
+            
+
+            $groupChart = collect($data['chart'])->groupBy('product_name');
+            $tmpGroupChart = [];
+            foreach($groupChart as $index => $item){
+                $gChart = collect($groupChart[$index])->pluck('date');
+                for($i=1; $i <= (int) $last_date; $i++){
+                    $date = \Carbon\Carbon::parse($year . "-" . $i . "-" . '01')->format('Y-m-d');
+
+                    if(!in_array($date, $gChart->toArray())){
+                        $groupChart[$index][] = [
+                            'product_name' => '',
+                            'market_name' => '',
+                            'amount' => 0,
+                            'date' => $date
+                        ];
+                    }
+                }
+
+                $tmpChart = collect($groupChart[$index])->sortBy('date')->values();
+
+                $tmpGroupChart[$index] = $tmpChart; 
             }
 
             $labels = collect($labels);
+            $labels = $labels->sort();
+
 
 
             return view('analisa.chart.index', [
                 'labels' => $labels,
-                'data' => json_encode($data['chart']),
+                'data' => json_encode($tmpGroupChart),
                 'product' => $data['product']
             ]);
         }
+
+        
+
+
+
+
 
 
         return view('analisa.chart.index', [
@@ -148,6 +270,7 @@ class HistoryController extends Controller
     public function create()
     {
         $data['product'] = Product::all();
+        $data['market'] = Market::all();
         return view('analisa.dataset.create', $data);
     }
 
@@ -161,6 +284,7 @@ class HistoryController extends Controller
     {
         $request->validate([
             'product_id' => 'required',
+            'market_id' => 'required',
             'date' => 'required',
             'amount' => 'required',
         ]);
@@ -169,6 +293,7 @@ class HistoryController extends Controller
             'product_id' => $request->product_id,
             'date' => $request->date,
             'amount' => $request->amount,
+            'market_id' => $request->market_id,
         );
 
         History::create($dataArray);
@@ -227,12 +352,14 @@ class HistoryController extends Controller
             'product_id' => 'required',
             'date' => 'required',
             'amount' => 'required',
+            'market_id' => 'required',
         ]);
 
         $dataArray = array (
             'product_id' => $request->product_id,
             'date' => $request->date,
             'amount' => $request->amount,
+            'market_id' => $request->market_id,
         );
 
         History::whereId($id)->update($dataArray);

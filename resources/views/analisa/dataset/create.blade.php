@@ -27,6 +27,15 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="">Market Name</label>
+                    <select name="market_id" id="" class="form-control">
+                        @foreach ($market as $i)
+                            <option value="{{$i->id}}">{{$i->name}}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="">Harga Barang</label>
                     <input type="number" class="form-control" name="amount" autocomplete="off" required>
                 </div>
